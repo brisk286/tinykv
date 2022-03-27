@@ -42,6 +42,7 @@ func Iter(s *standalone_storage.StandAloneStorage, cf string) (engine_util.DBIte
 
 func cleanUpTestData(conf *config.Config) error {
 	if conf != nil {
+		//删除DB文件
 		return os.RemoveAll(conf.DBPath)
 	}
 	return nil
@@ -68,11 +69,17 @@ func TestRawGet1(t *testing.T) {
 }
 
 func TestRawGetNotFound1(t *testing.T) {
+	//test配置
 	conf := config.NewTestConfig()
+	//根据配置创建StandAloneStorage实例
 	s := standalone_storage.NewStandAloneStorage(conf)
+	//启动NewStandAloneStorage，创建StandAloneStorage.engines.DB
 	s.Start()
+	//根据StandAloneStorage启动Server
 	server := NewServer(s)
+	//删除DB文件
 	defer cleanUpTestData(conf)
+	//关闭StandAloneStorage中engines的Kv数据库DB
 	defer s.Stop()
 
 	cf := engine_util.CfDefault
@@ -80,6 +87,11 @@ func TestRawGetNotFound1(t *testing.T) {
 		Key: []byte{99},
 		Cf:  cf,
 	}
+
+	//从server的storage接口中调用，由StandAloneStorage实现的Reader函数，
+	//该函数调用GetReader，通过StandAloneStorage.engines.Kv.DB创建一个新的txn
+	//通过这个txn去db里拿value
+	//转换key值为cf_key
 	resp, err := server.RawGet(nil, req)
 	assert.Nil(t, err)
 	assert.True(t, resp.NotFound)
@@ -101,7 +113,6 @@ func TestRawPut1(t *testing.T) {
 	}
 
 	_, err := server.RawPut(nil, req)
-
 	got, err := Get(s, cf, []byte{99})
 	assert.Nil(t, err)
 	assert.Equal(t, []byte{42}, got)

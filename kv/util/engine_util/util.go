@@ -7,6 +7,9 @@ import (
 	"github.com/golang/protobuf/proto"
 )
 
+//这一节实验要求我们基于 badger 实现一个支持 Column Family 的 KV 数据库。
+//你可以通过在 key 前面加前缀的方式，实现一个 key 有多列。
+//使用[]byte便于修改字符串
 func KeyWithCF(cf string, key []byte) []byte {
 	return append([]byte(cf+"_"), key...)
 }
@@ -20,6 +23,8 @@ func GetCF(db *badger.DB, cf string, key []byte) (val []byte, err error) {
 }
 
 func GetCFFromTxn(txn *badger.Txn, cf string, key []byte) (val []byte, err error) {
+	//使用cf_key作为key获取value
+	//从txn的db中get
 	item, err := txn.Get(KeyWithCF(cf, key))
 	if err != nil {
 		return nil, err

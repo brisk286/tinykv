@@ -16,13 +16,16 @@ import (
 var _ tinykvpb.TinyKvServer = new(Server)
 
 // Server is a TinyKV server, it 'faces outwards', sending and receiving messages from clients such as TinySQL.
+// 服务器是一个 TinyKV 服务器，它“面向外届”，发送和接收来自 TinySQL 等客户端的消息。
 type Server struct {
 	storage storage.Storage
 
 	// (Used in 4A/4B)
+	//TinyKV 命令锁
 	Latches *latches.Latches
 
 	// coprocessor API handler, out of course scope
+	// 协处理器 API 处理程序，超出课程范围
 	copHandler *coprocessor.CopHandler
 }
 

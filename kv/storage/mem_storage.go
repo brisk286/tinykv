@@ -130,6 +130,7 @@ func (s *MemStorage) Len(cf string) int {
 }
 
 // memReader is a StorageReader which reads from a MemStorage.
+// memReader 是一个从 MemStorage 读取的 StorageReader。
 type memReader struct {
 	inner     *MemStorage
 	iterCount int
