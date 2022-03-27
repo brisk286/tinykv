@@ -27,6 +27,7 @@ func (wb *WriteBatch) Len() int {
 }
 
 func (wb *WriteBatch) SetCF(cf string, key, val []byte) {
+	//添加到Entry队列中
 	wb.entries = append(wb.entries, &badger.Entry{
 		Key:   KeyWithCF(cf, key),
 		Value: val,
@@ -42,6 +43,7 @@ func (wb *WriteBatch) DeleteMeta(key []byte) {
 }
 
 func (wb *WriteBatch) DeleteCF(cf string, key []byte) {
+	//添加到Entry队列中
 	wb.entries = append(wb.entries, &badger.Entry{
 		Key: KeyWithCF(cf, key),
 	})
@@ -72,10 +74,13 @@ func (wb *WriteBatch) RollbackToSafePoint() {
 }
 
 func (wb *WriteBatch) WriteToDB(db *badger.DB) error {
+	//如果队列中有元素
 	if len(wb.entries) > 0 {
+		//新建一个txn，通过这个txn进行数据库操作
 		err := db.Update(func(txn *badger.Txn) error {
 			for _, entry := range wb.entries {
 				var err1 error
+				//辨别是DELETE还是PUT
 				if len(entry.Value) == 0 {
 					err1 = txn.Delete(entry.Key)
 				} else {

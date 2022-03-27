@@ -50,6 +50,7 @@ func (server *Server) RawPut(_ context.Context, req *kvrpcpb.RawPutRequest) (*kv
 			},
 		},
 	}
+	//修改直接写入
 	err := server.storage.Write(req.Context, modify)
 	if err != nil {
 		log.Errorf("RawPut failed && err=%+v", err)
@@ -59,15 +60,57 @@ func (server *Server) RawPut(_ context.Context, req *kvrpcpb.RawPutRequest) (*kv
 }
 
 // RawDelete delete the target data from storage and returns the corresponding response
+// RawDelete 从存储中删除目标数据并返回相应的响应
 func (server *Server) RawDelete(_ context.Context, req *kvrpcpb.RawDeleteRequest) (*kvrpcpb.RawDeleteResponse, error) {
 	// Your Code Here (1).
 	// Hint: Consider using Storage.Modify to store data to be deleted
-	return nil, nil
+	// 提示：考虑使用 Storage.Modify 存储要删除的数据
+	log.Infof("RawDelete cf=%v, key=%v", req.GetCf(), req.GetKey())
+	rsp := new(kvrpcpb.RawDeleteResponse)
+	modify := []storage.Modify{
+		{
+			Data: storage.Delete{
+				Cf:  req.Cf,
+				Key: req.Key,
+			},
+		},
+	}
+	err := server.storage.Write(req.Context, modify)
+	if err != nil {
+		log.Errorf("RawDelete failed && err=%+v", err)
+		rsp.Error = err.Error()
+	}
+	return rsp, nil
 }
 
 // RawScan scan the data starting from the start key up to limit. and return the corresponding result
+// RawScan 从开始键开始扫描数据直到限制。 并返回相应的结果
 func (server *Server) RawScan(_ context.Context, req *kvrpcpb.RawScanRequest) (*kvrpcpb.RawScanResponse, error) {
 	// Your Code Here (1).
 	// Hint: Consider using reader.IterCF
-	return nil, nil
+	log.Infof("RawScan cf=%v, start=%v, limit=%v", req.GetCf(), req.GetStartKey(), req.GetLimit())
+	rsp := new(kvrpcpb.RawScanResponse)
+	reader, _ := server.storage.Reader(req.Context)
+	defer reader.Close()
+	//返回BadgerIterator， 它实现了DBIterator接口， 使用cf做前缀的迭代器
+	iter := reader.IterCF(req.Cf)
+	defer iter.Close()
+	iter.Seek(req.StartKey)
+	//在limit范围内返回范围队列
+	for i := uint32(0); iter.Valid() && i < req.Limit; i += 1 {
+		item := iter.Item()
+		key := item.Key()
+		val, err := item.Value()
+		if err != nil {
+			log.Warnf("RawScan items error occurs && key=%v, err=%+v", key, err)
+		}
+		rsp.Kvs = append(rsp.Kvs,
+			&kvrpcpb.KvPair{
+				Key:   key,
+				Value: val,
+			},
+		)
+		iter.Next()
+	}
+	return rsp, nil
 }

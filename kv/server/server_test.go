@@ -48,6 +48,7 @@ func cleanUpTestData(conf *config.Config) error {
 	return nil
 }
 
+//查询
 func TestRawGet1(t *testing.T) {
 	conf := config.NewTestConfig()
 	s := standalone_storage.NewStandAloneStorage(conf)
@@ -68,6 +69,7 @@ func TestRawGet1(t *testing.T) {
 	assert.Equal(t, []byte{42}, resp.Value)
 }
 
+//查不到
 func TestRawGetNotFound1(t *testing.T) {
 	//test配置
 	conf := config.NewTestConfig()
@@ -97,6 +99,7 @@ func TestRawGetNotFound1(t *testing.T) {
 	assert.True(t, resp.NotFound)
 }
 
+//放入
 func TestRawPut1(t *testing.T) {
 	conf := config.NewTestConfig()
 	s := standalone_storage.NewStandAloneStorage(conf)
@@ -118,6 +121,7 @@ func TestRawPut1(t *testing.T) {
 	assert.Equal(t, []byte{42}, got)
 }
 
+//相同的key， 不同的cf，查询
 func TestRawGetAfterRawPut1(t *testing.T) {
 	conf := config.NewTestConfig()
 	s := standalone_storage.NewStandAloneStorage(conf)
@@ -134,6 +138,7 @@ func TestRawGetAfterRawPut1(t *testing.T) {
 	_, err := server.RawPut(nil, put1)
 	assert.Nil(t, err)
 
+	//修改
 	put2 := &kvrpcpb.RawPutRequest{
 		Key:   []byte{99},
 		Value: []byte{44},
@@ -159,6 +164,7 @@ func TestRawGetAfterRawPut1(t *testing.T) {
 	assert.Equal(t, []byte{44}, resp.Value)
 }
 
+//删了再查
 func TestRawGetAfterRawDelete1(t *testing.T) {
 	conf := config.NewTestConfig()
 	s := standalone_storage.NewStandAloneStorage(conf)
@@ -187,6 +193,7 @@ func TestRawGetAfterRawDelete1(t *testing.T) {
 	assert.True(t, resp.NotFound)
 }
 
+//直接删
 func TestRawDelete1(t *testing.T) {
 	conf := config.NewTestConfig()
 	s := standalone_storage.NewStandAloneStorage(conf)
@@ -211,6 +218,7 @@ func TestRawDelete1(t *testing.T) {
 	assert.Equal(t, []byte(nil), val)
 }
 
+//范围查询
 func TestRawScan1(t *testing.T) {
 	conf := config.NewTestConfig()
 	s := standalone_storage.NewStandAloneStorage(conf)

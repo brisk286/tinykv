@@ -1,7 +1,6 @@
 package standalone_storage
 
 import (
-	"fmt"
 	"github.com/Connor1996/badger"
 	"github.com/pingcap-incubator/tinykv/kv/config"
 	"github.com/pingcap-incubator/tinykv/kv/storage"
@@ -70,7 +69,7 @@ func (s *StandAloneStorage) Stop() error {
 
 func (s *StandAloneStorage) Reader(ctx *kvrpcpb.Context) (storage.StorageReader, error) {
 	// Your Code Here (1).
-	fmt.Println("use StandAloneStorage")
+	//fmt.Println("use StandAloneStorage")
 	return s.GetReader(), nil
 }
 
@@ -79,6 +78,8 @@ func (s *StandAloneStorage) Write(ctx *kvrpcpb.Context, batch []storage.Modify) 
 	//批量写
 	writeBatch := &engine_util.WriteBatch{}
 	for _, m := range batch {
+		//根据type识别操作
+		//添加进Entry队列
 		switch m.Data.(type) {
 		case storage.Put:
 			writeBatch.SetCF(m.Cf(), m.Key(), m.Value())
@@ -86,6 +87,7 @@ func (s *StandAloneStorage) Write(ctx *kvrpcpb.Context, batch []storage.Modify) 
 			writeBatch.DeleteCF(m.Cf(), m.Key())
 		}
 	}
+	//取出Entry队列，新建txn操作数据库
 	return s.engines.WriteKV(writeBatch)
 }
 
@@ -112,7 +114,7 @@ func (r reader) Close() {
 }
 
 func (s *StandAloneStorage) GetReader() *reader {
-	fmt.Println("use GetReader")
+	//fmt.Println("use GetReader")
 	return &reader{
 		//用一个新的Txn
 		txn: s.engines.Kv.NewTransaction(false),
