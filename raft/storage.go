@@ -16,6 +16,7 @@ package raft
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 
 	"github.com/pingcap-incubator/tinykv/log"
@@ -44,57 +45,88 @@ var ErrSnapshotTemporarilyUnavailable = errors.New("snapshot is temporarily unav
 // If any Storage method returns an error, the raft instance will
 // become inoperable and refuse to participate in elections; the
 // application is responsible for cleanup and recovery in this case.
+// Storage 是一个接口，可以由应用程序实现以从存储中检索日志条目。
+// 如果任何一个Storage方法返回错误，raft实例将变得不可操作并拒绝参与选举；
+// 在这种情况下，应用程序负责清理和恢复。
 type Storage interface {
 	// InitialState returns the saved HardState and ConfState information.
+	// InitialState 返回保存的 HardState 和 ConfState 信息。
 	InitialState() (pb.HardState, pb.ConfState, error)
+
 	// Entries returns a slice of log entries in the range [lo,hi).
 	// MaxSize limits the total size of the log entries returned, but
 	// Entries returns at least one entry if any.
+	// Entries 返回 [lo,hi) 范围内的日志条目切片。
+	// MaxSize 限制返回的日志条目的总大小，但 Entries 至少返回一个条目（如果有）。
 	Entries(lo, hi uint64) ([]pb.Entry, error)
+
 	// Term returns the term of entry i, which must be in the range
 	// [FirstIndex()-1, LastIndex()]. The term of the entry before
 	// FirstIndex is retained for matching purposes even though the
 	// rest of that entry may not be available.
+	// Term 返回条目 i 的 term，必须在 [FirstIndex()-1, LastIndex()] 范围内。
+	// 为了匹配目的，保留 FirstIndex 之前条目的术语，即使该条目的其余部分可能不可用。
 	Term(i uint64) (uint64, error)
+
 	// LastIndex returns the index of the last entry in the log.
+	// LastIndex 返回日志中最后一个条目的索引。
 	LastIndex() (uint64, error)
+
 	// FirstIndex returns the index of the first log entry that is
 	// possibly available via Entries (older entries have been incorporated
 	// into the latest Snapshot; if storage only contains the dummy entry the
 	// first log entry is not available).
+	// FirstIndex 返回可能通过 Entries 可用的第一个日志条目的索引
+	//（较旧的条目已合并到最新的快照中；如果存储仅包含虚拟条目，则第一个日志条目不可用）。
 	FirstIndex() (uint64, error)
+
 	// Snapshot returns the most recent snapshot.
 	// If snapshot is temporarily unavailable, it should return ErrSnapshotTemporarilyUnavailable,
 	// so raft state machine could know that Storage needs some time to prepare
 	// snapshot and call Snapshot later.
+	// 快照返回最近的快照。
+	// 如果快照暂时不可用，它应该返回 ErrSnapshotTemporarilyUnavailable,
+	// 所以 raft 状态机可以知道 Storage 需要一些时间来准备快照并稍后调用 Snapshot。
 	Snapshot() (pb.Snapshot, error)
 }
 
 // MemoryStorage implements the Storage interface backed by an
 // in-memory array.
+// MemoryStorage 实现了由内存array支持的 Storage 接口。
 type MemoryStorage struct {
 	// Protects access to all fields. Most methods of MemoryStorage are
 	// run on the raft goroutine, but Append() is run on an application
 	// goroutine.
+	// 保护对所有字段的访问。
+	// MemoryStorage 的大多数方法都在 raft goroutine 上运行，
+	// 但 Append() 是在application goroutine 上运行的。
 	sync.Mutex
 
+	//硬状态，与软状态相反，需要写入持久化存储中，
+	// 包括：节点当前Term、Vote、Commit
 	hardState pb.HardState
-	snapshot  pb.Snapshot
+	//需要写入持久化存储中的快照数据
+	snapshot pb.Snapshot
 	// ents[i] has raft log position i+snapshot.Metadata.Index
+	// ents[i] 有 raft 日志位置 i+snapshot.Metadata.Index
 	ents []pb.Entry
 }
 
 // NewMemoryStorage creates an empty MemoryStorage.
+// NewMemoryStorage 创建一个空的 MemoryStorage。
 func NewMemoryStorage() *MemoryStorage {
 	return &MemoryStorage{
 		// When starting from scratch populate the list with a dummy entry at term zero.
+		// 从头开始时，在第 0 项处使用虚拟条目填充列表。
 		ents:     make([]pb.Entry, 1),
 		snapshot: pb.Snapshot{Metadata: &pb.SnapshotMetadata{ConfState: &pb.ConfState{}}},
 	}
 }
 
 // InitialState implements the Storage interface.
+// InitialState 实现了 Storage 接口。
 func (ms *MemoryStorage) InitialState() (pb.HardState, pb.ConfState, error) {
+	fmt.Println("use MemoryStorage InitialState")
 	return ms.hardState, *ms.snapshot.Metadata.ConfState, nil
 }
 

@@ -76,6 +76,7 @@ func NewPeerStorage(engines *engine_util.Engines, region *metapb.Region, regionS
 }
 
 func (ps *PeerStorage) InitialState() (eraftpb.HardState, eraftpb.ConfState, error) {
+	fmt.Println("use PeerStorage InitialState")
 	raftState := ps.raftState
 	if raft.IsEmptyHardState(*raftState.HardState) {
 		y.AssertTruef(!ps.isInitialized(),

@@ -47,6 +47,7 @@ func (EntryType) EnumDescriptor() ([]byte, []int) {
 
 // Some MessageType defined here are local messages which not come from the network, but should
 // also use the Step method to handle
+// 这里定义的一些MessageType是本地消息，不是来自网络，也应该使用Step方法来处理
 type MessageType int32
 
 const (
@@ -57,6 +58,8 @@ const (
 	// of the 'MessageType_MsgHeartbeat' type to its followers.
 	MessageType_MsgBeat MessageType = 1
 	// 'MessageType_MsgPropose' is a local message that proposes to append data to the leader's log entries.
+	// 'MessageType_MsgPropose' 是一条本地消息，建议将数据附加到领导者的日志条目。
+	// raft库的使用者向raft库propose数据时，最后会封装成这个类型的消息来进行提交，不同类型的节点处理还不尽相同。
 	MessageType_MsgPropose MessageType = 2
 	// 'MessageType_MsgAppend' contains log entries to replicate.
 	MessageType_MsgAppend MessageType = 3
@@ -221,6 +224,8 @@ func (m *Entry) GetData() []byte {
 
 // SnapshotMetadata contains the log index and term of the last log applied to this
 // Snapshot, along with the membership information of the time the last log applied.
+// SnapshotMetadata 包含上次应用到本次快照的日志索引和期限，
+// 以及上次应用日志时间的成员信息。
 type SnapshotMetadata struct {
 	ConfState            *ConfState `protobuf:"bytes,1,opt,name=conf_state,json=confState" json:"conf_state,omitempty"`
 	Index                uint64     `protobuf:"varint,2,opt,name=index,proto3" json:"index,omitempty"`
@@ -460,6 +465,7 @@ func (m *Message) GetReject() bool {
 
 // HardState contains the state of a node need to be peristed, including the current term, commit index
 // and the vote record
+// HardState 包含需要持久化的节点状态，包括当前任期、提交索引和投票记录
 type HardState struct {
 	Term                 uint64   `protobuf:"varint,1,opt,name=term,proto3" json:"term,omitempty"`
 	Vote                 uint64   `protobuf:"varint,2,opt,name=vote,proto3" json:"vote,omitempty"`
@@ -524,6 +530,7 @@ func (m *HardState) GetCommit() uint64 {
 }
 
 // ConfState contains the current membership information of the raft group
+// ConfState 配置（里面存储了集群中有哪些节点）
 type ConfState struct {
 	// all node id
 	Nodes                []uint64 `protobuf:"varint,1,rep,packed,name=nodes" json:"nodes,omitempty"`

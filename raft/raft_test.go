@@ -17,10 +17,12 @@ package raft
 import (
 	"bytes"
 	"fmt"
+	"github.com/pingcap-incubator/tinykv/log"
 	"math/rand"
 	"reflect"
 	"testing"
 
+	huge "github.com/dablelv/go-huge-util"
 	pb "github.com/pingcap-incubator/tinykv/proto/pkg/eraftpb"
 )
 
@@ -55,17 +57,37 @@ func (r *Raft) readMessages() []pb.Message {
 	return msgs
 }
 
+func init() {
+	log.SetLevel(log.LOG_LEVEL_DEBUG)
+}
+
 func TestProgressLeader2AB(t *testing.T) {
+	//raft id : 1
+	//raft集群id：1， 2
+	//超时为5， 心跳为1
 	r := newTestRaft(1, []uint64{1, 2}, 5, 1, NewMemoryStorage())
+	rj, _ := huge.ToIndentJSON(&r)
+	fmt.Printf("r=%+v\n", rj)
 	r.becomeCandidate()
 	r.becomeLeader()
+	rj, _ = huge.ToIndentJSON(&r)
+	fmt.Printf("r=%+v\n", rj)
+	//rl, _ := huge.ToIndentJSON(&r.RaftLog)
+	//fmt.Printf("r=%+v\n", rl)
+
+	for id, _ := range r.Prs {
+		fmt.Println(id)
+	}
 
 	// Send proposals to r1. The first 5 entries should be appended to the log.
+	// 向 r1 发送提案。 前 5 个条目应附加到日志中。
+	//MessageType_MsgPropose：是一条本地消息，建议将数据附加到领导者的日志条目。
 	propMsg := pb.Message{From: 1, To: 1, MsgType: pb.MessageType_MsgPropose, Entries: []*pb.Entry{{Data: []byte("foo")}}}
 	for i := 0; i < 5; i++ {
 		if pr := r.Prs[r.id]; pr.Match != uint64(i+1) || pr.Next != pr.Match+1 {
 			t.Errorf("unexpected progress %v", pr)
 		}
+		//由Step接口作为外界的接口，处理一切ready
 		if err := r.Step(propMsg); err != nil {
 			t.Fatalf("proposal resulted in error: %v", err)
 		}
