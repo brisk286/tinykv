@@ -16,7 +16,6 @@ package raft
 
 import (
 	"errors"
-	"fmt"
 	"sync"
 
 	"github.com/pingcap-incubator/tinykv/log"
@@ -126,7 +125,7 @@ func NewMemoryStorage() *MemoryStorage {
 // InitialState implements the Storage interface.
 // InitialState 实现了 Storage 接口。
 func (ms *MemoryStorage) InitialState() (pb.HardState, pb.ConfState, error) {
-	fmt.Println("use MemoryStorage InitialState")
+	//fmt.Println("use MemoryStorage InitialState")
 	return ms.hardState, *ms.snapshot.Metadata.ConfState, nil
 }
 

@@ -53,6 +53,9 @@ type MessageType int32
 const (
 	// 'MessageType_MsgHup' is a local message used for election. If an election timeout happened,
 	// the node should pass 'MessageType_MsgHup' to its Step method and start a new election.
+	// 'MessageType_MsgHup' 是用于选举的本地消息。 如果发生选举超时，
+	// 节点应该将 'MessageType_MsgHup' 传递给它的 Step 方法并开始新的选举。
+	//不用于节点间通信，仅用于发送给本节点让本节点进行选举
 	MessageType_MsgHup MessageType = 0
 	// 'MessageType_MsgBeat' is a local message that signals the leader to send a heartbeat
 	// of the 'MessageType_MsgHeartbeat' type to its followers.
@@ -66,6 +69,7 @@ const (
 	// 'MessageType_MsgAppendResponse' is response to log replication request('MessageType_MsgAppend').
 	MessageType_MsgAppendResponse MessageType = 4
 	// 'MessageType_MsgRequestVote' requests votes for election.
+	// 'MessageType_MsgRequestVote' 请求选举投票。
 	MessageType_MsgRequestVote MessageType = 5
 	// 'MessageType_MsgRequestVoteResponse' contains responses from voting request.
 	MessageType_MsgRequestVoteResponse MessageType = 6

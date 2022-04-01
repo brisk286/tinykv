@@ -35,6 +35,7 @@ func newMemoryStorageWithEnts(ents []pb.Entry) *MemoryStorage {
 }
 
 // nextEnts returns the appliable entries and updates the applied index
+// nextEnts 返回适用的entries并更新应用的索引
 func nextEnts(r *Raft, s *MemoryStorage) (ents []pb.Entry) {
 	// Transfer all unstable entries to "stable" storage.
 	s.Append(r.RaftLog.unstableEntries())
@@ -50,6 +51,7 @@ type stateMachine interface {
 	readMessages() []pb.Message
 }
 
+//将msgs返回后清空
 func (r *Raft) readMessages() []pb.Message {
 	msgs := r.msgs
 	r.msgs = make([]pb.Message, 0)
@@ -94,8 +96,10 @@ func TestProgressLeader2AB(t *testing.T) {
 	}
 }
 
+//只要超过半数立刻当选Leader
 func TestLeaderElection2AA(t *testing.T) {
 	var cfg func(*Config)
+	//匿名结构体队列  并 初始化
 	tests := []struct {
 		*network
 		state   StateType
@@ -107,9 +111,11 @@ func TestLeaderElection2AA(t *testing.T) {
 		{newNetworkWithConfig(cfg, nil, nopStepper, nopStepper, nil), StateCandidate, 1},
 		{newNetworkWithConfig(cfg, nil, nopStepper, nopStepper, nil, nil), StateLeader, 1},
 	}
-
+	//nil初始化都是Follower
 	for i, tt := range tests {
+		//Message里的to节点会处理MessageType_MsgHup
 		tt.send(pb.Message{From: 1, To: 1, MsgType: pb.MessageType_MsgHup})
+		//节点id为1的节点
 		sm := tt.network.peers[1].(*Raft)
 		if sm.State != tt.state {
 			t.Errorf("#%d: state = %s, want %s", i, sm.State, tt.state)
@@ -117,12 +123,18 @@ func TestLeaderElection2AA(t *testing.T) {
 		if g := sm.Term; g != tt.expTerm {
 			t.Errorf("#%d: term = %d, want %d", i, g, tt.expTerm)
 		}
+		//只要超过半数立刻当选Leader
+		fmt.Println(len(tt.network.peers))
+		fmt.Println(sm.voteCount)
+		fmt.Println("---------------")
 	}
 }
 
 // testLeaderCycle verifies that each node in a cluster can campaign
 // and be elected in turn. This ensures that elections work when not
 // starting from a clean slate (as they do in TestLeaderElection)
+// testLeaderCycle 验证集群中的每个节点都可以依次竞选和被选举。
+// 这确保了选举在没有从头开始时有效（就像在 TestLeaderElection 中所做的那样）
 func TestLeaderCycle2AA(t *testing.T) {
 	var cfg func(*Config)
 	n := newNetworkWithConfig(cfg, nil, nil, nil)
@@ -147,6 +159,9 @@ func TestLeaderCycle2AA(t *testing.T) {
 // newly-elected leader does *not* have the newest (i.e. highest term)
 // log entries, and must overwrite higher-term log entries with
 // lower-term ones.
+// TestLeaderelectionoverWritenewerlogs测试一个方案，
+// 其中新选当的领导者*不是*具有最新（即最高术语）日志条目，
+// 并且必须覆盖具有较低术语的高级日志条目。
 func TestLeaderElectionOverwriteNewerLogs2AB(t *testing.T) {
 	cfg := func(c *Config) {
 		c.peers = idsBySize(5)
@@ -1574,6 +1589,9 @@ type network struct {
 
 	// msgHook is called for each message sent. It may inspect the
 	// message and return true to send it or false to drop it.
+	// 每个发送的消息都会调用 msgHook。
+	// 它可能会检查消息并返回 true 来发送它，或者返回 false 来丢弃它。
+	//回调?
 	msgHook func(pb.Message) bool
 }
 
@@ -1581,12 +1599,18 @@ type network struct {
 // A nil node will be replaced with a new *stateMachine.
 // A *stateMachine will get its k, id.
 // When using stateMachine, the address list is always [1, n].
+// newNetwork 从peers初始化一个网络。
+// 一个 nil 节点将被一个新的 *stateMachine 替换。
+// 一个 *stateMachine 将获得它的 k, id。
+// 使用stateMachine时，地址列表总是[1, n]。
 func newNetwork(peers ...stateMachine) *network {
 	return newNetworkWithConfig(nil, peers...)
 }
 
 // newNetworkWithConfig is like newNetwork but calls the given func to
 // modify the configuration of any state machines it creates.
+// newNetworkWithConfig 类似于 newNetwork
+// 但调用给定的函数来修改它创建的任何状态机的配置。
 func newNetworkWithConfig(configFunc func(*Config), peers ...stateMachine) *network {
 	size := len(peers)
 	peerAddrs := idsBySize(size)
@@ -1597,6 +1621,7 @@ func newNetworkWithConfig(configFunc func(*Config), peers ...stateMachine) *netw
 	for j, p := range peers {
 		id := peerAddrs[j]
 		switch v := p.(type) {
+		//如果是nil 会初始化一个节点
 		case nil:
 			nstorage[id] = NewMemoryStorage()
 			cfg := newTestConfig(id, peerAddrs, 10, 1, nstorage[id])
@@ -1623,9 +1648,13 @@ func newNetworkWithConfig(configFunc func(*Config), peers ...stateMachine) *netw
 }
 
 func (nw *network) send(msgs ...pb.Message) {
+	//发送，知道raft的mags里没有massage
 	for len(msgs) > 0 {
 		m := msgs[0]
+		//p是to节点
 		p := nw.peers[m.To]
+		//交给to节点处理mags
+		//fmt.Println(m.MsgType)
 		p.Step(m)
 		msgs = append(msgs[1:], nw.filter(p.readMessages())...)
 	}
@@ -1668,6 +1697,7 @@ func (nw *network) filter(msgs []pb.Message) []pb.Message {
 		switch m.MsgType {
 		case pb.MessageType_MsgHup:
 			// hups never go over the network, so don't drop them but panic
+			// hups 永远不会通过网络，所以不要丢弃它们，但要恐慌
 			panic("unexpected MessageType_MsgHup")
 		default:
 			perc := nw.dropm[connem{m.From, m.To}]
@@ -1691,6 +1721,7 @@ type connem struct {
 
 type blackHole struct{}
 
+//作为一个节点，但不处理任何事务，无法投票，不参加选举
 func (blackHole) Step(pb.Message) error      { return nil }
 func (blackHole) readMessages() []pb.Message { return nil }
 

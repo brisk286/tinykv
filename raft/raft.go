@@ -532,8 +532,10 @@ func (r *Raft) handleLeaderTransfer(m pb.Message) {
 }
 
 // handleVoteRequest handle vote request
+//处理 vote 请求
 func (r *Raft) handleVoteRequest(m pb.Message) {
 	lastTerm, _ := r.RaftLog.Term(r.RaftLog.LastIndex())
+	//判断msg.Term是否大于本节点的Term，如果消息的任期号更大则说明是一次新的选举。
 	if r.Term > m.Term {
 		r.sendVoteResponse(m.From, true)
 		return
@@ -585,12 +587,14 @@ func (r *Raft) campaign() {
 }
 
 // handleVoteResponse handle vote response
+//处理 vote 回应
 func (r *Raft) handleVoteResponse(m pb.Message) {
 	if m.Term > r.Term {
 		r.becomeFollower(m.Term, r.Lead)
 		r.Vote = m.From
 		return
 	}
+	//支持
 	if !m.Reject {
 		r.votes[m.From] = true
 		r.voteCount += 1
@@ -598,6 +602,7 @@ func (r *Raft) handleVoteResponse(m pb.Message) {
 		r.votes[m.From] = false
 		r.denialCount += 1
 	}
+	//判断
 	if r.voteCount > len(r.Prs)/2 {
 		r.becomeLeader()
 	} else if r.denialCount > len(r.Prs)/2 {
@@ -606,12 +611,15 @@ func (r *Raft) handleVoteResponse(m pb.Message) {
 }
 
 // bcastVoteRequest is used by candidate to send vote request
+// bcastVoteRequest 被candidate用来发送投票请求
 func (r *Raft) bcastVoteRequest() {
 	lastIndex := r.RaftLog.LastIndex()
 	lastTerm, _ := r.RaftLog.Term(lastIndex)
 	for peer := range r.Prs {
 		if peer != r.id {
 			msg := pb.Message{
+				//给每个peer都发送MsgRequestVote
+				//From r.id To peer
 				MsgType: pb.MessageType_MsgRequestVote,
 				From:    r.id,
 				To:      peer,
@@ -619,6 +627,7 @@ func (r *Raft) bcastVoteRequest() {
 				LogTerm: lastTerm,
 				Index:   lastIndex,
 			}
+			//加入到mags中，留给network.sent发送
 			r.msgs = append(r.msgs, msg)
 		}
 	}
@@ -662,8 +671,6 @@ func (r *Raft) becomeCandidate() {
 // becomeLeader transform this peer's state to leader
 func (r *Raft) becomeLeader() {
 	// Your Code Here (2A).
-	// NOTE: Leader should propose a noop entry on its term
-	// 注意：领导者应该在其任期内提出一个 noop 条目
 	log.Debugf("%v become leader", r.id)
 	// Your Code Here (2A).
 	r.State = StateLeader
@@ -673,6 +680,7 @@ func (r *Raft) becomeLeader() {
 		v.Next = r.RaftLog.LastIndex() + 1
 	}
 	// NOTE: Leader should propose a noop entry on its term
+	// 注意：领导者应该在其任期内提出一个 noop 条目
 	r.resetTick()
 	r.appendEntries(&pb.Entry{
 		EntryType: pb.EntryType_EntryNormal,
@@ -710,6 +718,7 @@ func (r *Raft) Step(m pb.Message) error {
 func (r *Raft) handleAppendEntries(m pb.Message) {
 	// Your Code Here (2A).
 	// Reply false if term < currentTerm (§5.1)
+	// 如果 term < currentTerm (§5.1)，则回复 false
 	if m.Term < r.Term {
 		r.sendAppendResponse(m.From, true)
 		return
@@ -717,6 +726,7 @@ func (r *Raft) handleAppendEntries(m pb.Message) {
 	r.becomeFollower(m.Term, m.From)
 	// Reply false if log doesn’t contain an entry at prevLogIndex
 	// whose term matches prevLogTerm (§5.3)
+	// 如果日志不包含 prevLogIndex 中的条目匹配 prevLogTerm (§5.3)，则回复 false
 	term, err := r.RaftLog.Term(m.Index)
 	if err != nil || term != m.LogTerm {
 		r.sendAppendResponse(m.From, true)
@@ -725,6 +735,8 @@ func (r *Raft) handleAppendEntries(m pb.Message) {
 	// If an existing entry conflicts with a new one (same index
 	// but different terms), delete the existing entry and all that
 	// follow it (§5.3)
+	// 如果现有条目与新条目冲突（索引相同但术语不同），
+	// 则删除现有条目及其后面的所有条目（第 5.3 节）
 	if len(m.Entries) > 0 {
 		appendStart := 0
 		for i, ent := range m.Entries {
@@ -747,6 +759,8 @@ func (r *Raft) handleAppendEntries(m pb.Message) {
 	}
 	//  If leaderCommit > commitIndex,
 	// set commitIndex = min(leaderCommit, index of last new entry)
+	// 如果leaderCommit > commitIndex,
+	// 设置 commitIndex = min(leaderCommit, 最后一个新条目的索引)
 	if m.Commit > r.RaftLog.committed {
 		lastNewEntry := m.Index
 		if len(m.Entries) > 0 {
